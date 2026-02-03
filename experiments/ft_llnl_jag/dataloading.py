@@ -6,6 +6,24 @@ from visualization import data_visualizer
 from sensitivity_analysis import sensitivity_analyser
 from normalization import normalizer
 
+# some important notes 
+'''
+These are two ways to perform scaling studies on the ICF-JAG dataset:
+1. Mehod-1 (This code):
+2. In this method, we first select a fraction of the dataset (data_frac),
+3. Split into train/val/test.
+4. Test set varies with data_frac.
+5. Method-2 (dataloading_2.py): 
+6. In this method, we first split the full dataset into train/val/test (80/10/10).
+7. The data_frac is applied only on the training and validation sets.
+8. The test set remains constant across different data_frac.
+
+Conclusion:
+1. Method-1 and Method-2 yeild similar results in scaling studies.
+2. Method-1 and Method-2 yeild similar reduce in comparison of fine-tuning vs training from scratch.
+3. The paper uses method-1.
+'''
+
 # dataset class
 class DatasetforDataloader(Dataset):
     def __init__(self,X,p,s):
@@ -20,7 +38,7 @@ class DatasetforDataloader(Dataset):
         # create a tuple
         return self.X[i], self.p[i], self.s[i]
     
-def dataloaders(current_dir, model_dir, results_dir, data_frac, batch_size = 8):
+def dataloaders(current_dir, model_dir, results_dir, data_frac, batch_size = 8, params_to_use = None):
     # Load ICF-JAG-10K dataset
     path_images = os.path.join(current_dir, "icf-jag-10k", "jag10K_images.npy")
     path_params = os.path.join(current_dir, "icf-jag-10k", "jag10K_params.npy")
@@ -83,10 +101,16 @@ def dataloaders(current_dir, model_dir, results_dir, data_frac, batch_size = 8):
     dataset_size = int(images_norm.shape[0] * data_frac)  # adjust as needed
     data_idx = np.random.choice(images_norm.shape[0], dataset_size, replace=False)
 
-    # Dataset of dataloader
+    print(f' === Using parameters indices: {params_to_use} ===')
     X = images_norm[data_idx]
-    params = params_norm[data_idx]
     scalars = scalars_norm[data_idx]
+
+    if params_to_use is not None:
+        params = params_norm[data_idx][:, params_to_use]
+    else:
+        params = params_norm[data_idx]
+
+    # Dataset of dataloader
     full_dataset = DatasetforDataloader(X, params, scalars)
 
     # define the splits (80/10/10)
@@ -106,4 +130,4 @@ def dataloaders(current_dir, model_dir, results_dir, data_frac, batch_size = 8):
     print(f"Number of validation samples: {len(dataloader_val)}")
     print(f"Number of test samples: {len(dataloader_test)}")
 
-    return images_norm, params_norm, scalars_norm, dataloader_train, dataloader_val, dataloader_test
+    return images_norm, params, scalars_norm, dataloader_train, dataloader_val, dataloader_test

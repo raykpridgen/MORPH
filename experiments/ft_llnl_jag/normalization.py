@@ -15,6 +15,8 @@ def denormalize_params(norm_params, mu_params, std_params):
 
 def normalizer(images, scalars, params, stats_dir=None):
     # ---- reorganize images ---
+    N, H, W, C = images.shape
+    print(f"Original data shape (N,H,W,C): {images.shape}")  # (N, 64, 64, 4)
 
     # Data in (N, T, D, H, W, C, F) format
     E_1 = images[:, :, :, 0]
@@ -37,14 +39,17 @@ def normalizer(images, scalars, params, stats_dir=None):
     data_2 = np.concatenate((E_13, E_24), axis=-1)  # (N, 64, 64, 2, 2)
     print(f"Organized data shape (type-2): {data_2.shape}")  # (N, 64, 64, 2, 2)
 
-    data  = data_1  # choose one organization
-    print(f"Final data shape (N,H,W,C,F): {data.shape}")  # (N, 64, 64, 2, 2)
+    # type - 3 where each E1, E2, E3, E4 are separate fields
+    data_3 = images.reshape(N, H, W, 1, C)  # (N, 64, 64, 1, 4)
+
+    data  = data_3  # choose one organization
+    print(f"Final data shape (N,H,W,C,F): {data.shape}")  # (N, 64, 64, 1, 4)
 
     # ---- Prepare with RevIN ----
 
     # Bring data into (N, T, D, H, W, C, F) format
     data = data[:, np.newaxis, np.newaxis, :, :, :, :]  
-    print(f"Data shape (N, T, D, H, W, F, C): {data.shape}")  
+    print(f"Data shape (N, T, D, H, W, C, F): {data.shape}")  
 
     # Reshape the data in UPTF-7 format
     data = data.transpose(0, 1, 6, 5, 2, 3, 4)  

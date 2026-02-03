@@ -29,7 +29,7 @@ def morph_ft(model_variant='S', device='cpu',
     heads_xa = 32
     dropout = 0.1
     emb_dropout = 0.1
-    max_ar_order = 1
+    max_ar_order = 1 if model_variant in ['Ti', 'S', 'M'] else 16
     patch_size = 8
     max_patches = 4096
     max_fields = 3

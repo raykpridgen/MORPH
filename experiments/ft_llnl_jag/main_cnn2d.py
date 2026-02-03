@@ -21,7 +21,7 @@ print("Project root:", project_root)
 
 # built-in functions call
 from dataloading import dataloaders
-from model_standalone import CNN2D
+from model_cnn2d import CNN2D
 from trainers_standalone import Trainer2
 
 # Define important directories
