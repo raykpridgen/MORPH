@@ -13,16 +13,27 @@ class Visualize3DRolloutPredictions:
         self.field_names = field_names
         self.component_names = component_names
 
+    @staticmethod
+    def _prediction_from_model_output(raw):
+        """Handle MORPH forward outputs that may be a tuple."""
+        if isinstance(raw, tuple):
+            # MORPH ViT forward returns (aux1, aux2, pred); prediction is last.
+            if len(raw) == 0:
+                raise TypeError("Model returned an empty tuple; expected prediction tensor.")
+            return raw[-1]
+        return raw
+
     def rollout_predictions(self, start_step: int, num_steps: int):
         self.model.eval()
         preds = []
-        current_vol = self.test_dataset[:,start_step] # time dimension
+        current_vol = self.test_dataset[:,start_step].to(self.device) # time dimension
         with torch.no_grad():
             for _ in range(num_steps):
-                inp  = current_vol.unsqueeze(1).to(self.device)   # (B, t, F, C, D, H, W)
-                pred = self.model(inp).cpu()                      # (B, F, C, D, H, W)
-                preds.append(pred.unsqueeze(1))                   # (B, t, F, C, D, H, W)
-                current_vol = pred 
+                inp  = current_vol.unsqueeze(1)   # (B, t, F, C, D, H, W)
+                raw = self.model(inp)
+                pred = self._prediction_from_model_output(raw)  # (B, F, C, D, H, W) on device
+                preds.append(pred.detach().cpu().unsqueeze(1))  # store for plotting
+                current_vol = pred
         return preds
     
     def rollout_mse(self, test_dataset_full,
@@ -31,14 +42,15 @@ class Visualize3DRolloutPredictions:
         mse_all = []
         for n in range(test_dataset_full.shape[0]): # over test trajectories
             preds = []
-            current_vol = test_dataset_full[n,start_step].unsqueeze(0) # (F, C, D, H, W)
+            current_vol = test_dataset_full[n,start_step].unsqueeze(0).to(self.device) # (F, C, D, H, W)
             # print(f'current test traj {n} starting shape:{current_vol.shape}')
             with torch.no_grad():
                 for _ in range(num_steps):
-                    inp  = current_vol.unsqueeze(1).to(self.device)   # (B, t, F, C, D, H, W)
-                    pred = self.model(inp).cpu()                      # (B, F, C, D, H, W)
-                    preds.append(pred.unsqueeze(1))                   # (B, t, F, C, D, H, W)
-                    current_vol = pred 
+                    inp  = current_vol.unsqueeze(1)   # (B, t, F, C, D, H, W)
+                    raw = self.model(inp)
+                    pred = self._prediction_from_model_output(raw)  # (B, F, C, D, H, W) on device
+                    preds.append(pred.detach().cpu().unsqueeze(1))   # store for mse on CPU
+                    current_vol = pred
         
             # calculate rollout MSE
             preds_traj = torch.cat(preds, dim=1) # (1, num_steps, F, C, D, H, W)

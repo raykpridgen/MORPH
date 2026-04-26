@@ -71,6 +71,15 @@ class DataloaderChaos():
             else:
                 train_data, val_data = dataset.split_train()
                 return train_data, val_data
+
+        elif dataset_name == 'DR2D':
+            dataset = DR2DDataLoader(loadpath)
+            if split == 'test':
+                test_data = dataset.split_test()
+                return test_data
+            else:
+                train_data, val_data = dataset.split_train()
+                return train_data, val_data
             
         # --- Fine-tuning datasets ----    
         elif dataset_name == 'DR1D':

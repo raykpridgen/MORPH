@@ -63,6 +63,7 @@ def split_and_save_h5(raw_dir: str,
         # --- helper to write one split for this file ---
         def write_split(split_name, arr):
             out_folder = os.path.join(out_dir, split_name)
+            os.makedirs(out_folder, exist_ok=True)
             out_path = os.path.join(out_folder, f"{base}_{split_name}.h5")
             with h5py.File(out_path, "w") as fo:
                 fo.create_dataset("Vx",       data=arr[..., 0], compression="gzip")
