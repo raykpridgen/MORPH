@@ -51,8 +51,8 @@ parser.add_argument('--ckpt_from', type=str, choices = ['FM','FT'], default = 'F
                     help="Checkpoint information from FM or previous FT", required = True)
 parser.add_argument('--checkpoint', type=str, help="Path to saved .pth state dict", required=True)
 parser.add_argument('--ft_dataset', choices=['DR1D','CFD2D','CFD3D-TURB', 'BE1D',
-                     'GSDR2D', 'TGC3D','FNS_KF_2D'], type=str, default = 'DR1D', 
-                    help = "Choose the finetuning set")
+                     'GSDR2D', 'TGC3D','FNS_KF_2D', 'SW', 'DR2D'], type=str, default = 'DR1D',
+                    help = "Choose the finetuning set (SW = shallow water 2D; DR2D = diffusion–reaction 2D / DR2d_data_pdebench)")
 
 # --- Finetune levels ---                     
 parser.add_argument('--ft_level1', action='store_true', help = "Level-1 finetuning (LoRA, PE, LN)")
@@ -119,7 +119,8 @@ n_epochs = args.n_epochs
 # --- set the batch sizes ---
 # setting it to half of the standalone model (trained on 2 GPUs)
 batch_sizes = {'DR1D': 384 // 2, 'CFD2D': 64 // 2, 'CFD3D-TURB': 16 // 2,
-               'BE1D': 384 // 2, 'GSDR2D': 64 // 2, 'TGC3D': 16 // 2, 'FNS_KF_2D': 64 //2 }
+               'BE1D': 384 // 2, 'GSDR2D': 64 // 2, 'TGC3D': 16 // 2, 'FNS_KF_2D': 64 // 2,
+               'SW': 64 // 2, 'DR2D': 64 // 2}
 batch_size = args.batch_size if args.batch_size is not None else batch_sizes[ft_dataset]
 print(f'→ Selected Batch size for {ft_dataset} is {batch_size}')
 
@@ -174,13 +175,14 @@ datapath_be1d = os.path.join(dataset_root,'datasets', 'normalized_revin', datase
 datapath_gsdr2d = os.path.join(dataset_root,'datasets', 'normalized_revin', datasets[10])
 datapath_tgc3d = os.path.join(dataset_root,'datasets', 'normalized_revin', datasets[11])
 datapath_fns_kf_2d = os.path.join(dataset_root,'datasets', 'normalized_revin', datasets[12])
+datapath_dr2d = os.path.join(dataset_root,'datasets', 'normalized_revin', datasets[0])
 
 datapaths = {'MHD': datapath_mhd, 'DR' : datapath_dr,'CFD1D' : datapath_cfd1d,
 'CFD2D-IC': datapath_cfd2dic, 'CFD3D': datapath_cfd3d, 'SW': datapath_sw2d,
              'DR1D': datapath_dr1d ,'CFD2D':datapath_cfd2d, 
              'CFD3D-TURB': datapath_cfd3d_turb, 'BE1D': datapath_be1d,
              'GSDR2D': datapath_gsdr2d, 'TGC3D': datapath_tgc3d, 
-             'FNS_KF_2D': datapath_fns_kf_2d}
+             'FNS_KF_2D': datapath_fns_kf_2d, 'DR2D': datapath_dr2d}
 # savepaths
 savepath_results = os.path.join(project_root, "experiments", "results", "test")
 os.makedirs(savepath_results, exist_ok=True)
@@ -260,7 +262,10 @@ X_tr, y_tr = preparer.prepare(train_data[0:n_traj]) # also converts (N,T,D,H,W,C
 X_va, y_va = preparer.prepare(val_data[0: int(n_traj * 0.125)]) # val data is 12.5% of train data
 X_te, y_te = preparer.prepare(test_data) # also converts (N,T,D,H,W,C,F) -> (N,T,F,C,D,H,W)
 print(f'→ Training Inputs: {X_tr.shape} and Targets: {y_tr.shape}')
-assert X_tr.shape[0] == n_traj * (train_data.shape[1] - 1), "Shape mismatch !!"
+# Samples per trajectory = T - ar_order (see FastARDataPreparer.prepare)
+assert X_tr.shape[0] == n_traj * (train_data.shape[1] - args.ar_order), (
+    "Shape mismatch !! (check ar_order vs time length)"
+)
 
 # free some memory
 del train_data, val_data
@@ -300,14 +305,15 @@ if args.ckpt_from == 'FM':
     state_dict = ckpt["model_state_dict"]
     
     # pick the real model if wrapped
-    target = ft_model.module if isinstance(ft_model, nn.DataParallel) else ft_model 
+    target = ft_model.module if isinstance(ft_model, nn.DataParallel) else ft_model
 
-    if state_dict and next(iter(state_dict)).startswith("module.") and args.parallel == 'no':
+    if state_dict and any(k.startswith("module.") for k in state_dict.keys()):
         print("→ Stripping 'module.' from checkpoints")
         state_dict = {k.replace("module.", "", 1): v for k, v in state_dict.items()}
-        
-    # strict=False because ft_model has extra LoRA params (A/B) not in ckpt
-    missing, unexpected = target.load_state_dict(state_dict, strict=True)
+
+    # strict=False: ft_model has extra LoRA A/B (and related) params not in the FM ckpt.
+    incompatible = target.load_state_dict(state_dict, strict=False)
+    missing, unexpected = incompatible.missing_keys, incompatible.unexpected_keys
     
     # sanity print
     print("Missing keys (expected: LoRA A/B etc.):",

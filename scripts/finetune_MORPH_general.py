@@ -248,7 +248,9 @@ X_tr, y_tr = preparer.prepare(train_data[0:n_traj])  # also converts (N,T,D,H,W,
 X_va, y_va = preparer.prepare(val_data) 
 X_te, y_te = preparer.prepare(test_data)             
 print(f'→ Training Inputs: {X_tr.shape} and Targets: {y_tr.shape}')
-assert X_tr.shape[0] == n_traj * (train_data.shape[1] - 1), "Shape mismatch !!"
+assert X_tr.shape[0] == n_traj * (train_data.shape[1] - args.ar_order), (
+    "Shape mismatch !! (check ar_order vs time length)"
+)
 
 # free some memory
 del train_data, val_data

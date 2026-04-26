@@ -56,7 +56,7 @@ datapaths = {'MHD': datapath_mhd, 'DR' : datapath_dr,'CFD1D' : datapath_cfd1d,
              'DR1D': datapath_dr1d ,'CFD2D':datapath_cfd2d, 
              'CFD3D-TURB': datapath_cfd3d_turb, 'BE1D': datapath_be1d,
              'GSDR2D': datapath_gsdr2d, 'TGC3D': datapath_tgc3d,
-             'FNS_KF_2D': datapath_fns_kf_2d}
+             'FNS_KF_2D': datapath_fns_kf_2d, 'DR2D': datapath_dr}
 # savepaths
 savepath_results = os.path.join(project_root, "experiments", "results", "test")
 os.makedirs(savepath_results, exist_ok=True)
@@ -91,14 +91,15 @@ MORPH_MODELS = {
 parser = argparse.ArgumentParser(description="Run inference on trained ViT3D model")
 # main
 parser.add_argument('--model_choice', choices=['MHD','DR','CFD1D','CFD2D-IC','CFD3D',
-                    'SW','DR1D','CFD2D','CFD3D-TURB', 'BE1D', 'GSDR2D' ,'TGC3D','FNS_KF_2D', 
+                    'SW','DR1D','CFD2D','CFD3D-TURB', 'BE1D', 'GSDR2D' ,'TGC3D','FNS_KF_2D',
+                    'DR2D',
                     'FM'], type = str, default = 'MHD', help = 'Select the model to test')
 parser.add_argument('--model_size', type=str, choices = list(MORPH_MODELS.keys()),
                     default='Ti', help='choose from Ti, S, M, L')
 parser.add_argument('--checkpoint', type=str, help="Path to saved .pth state dict")
 parser.add_argument('--test_dataset', choices=['MHD','DR','CFD1D','CFD2D-IC','CFD3D',
                     'SW','DR1D','CFD2D','CFD3D-TURB', 'BE1D', 'GSDR2D', 'TGC3D',
-                    'FNS_KF_2D'], 
+                    'FNS_KF_2D', 'DR2D'],
                     type=str, default = 'MHD', help = 'Select the test dataset')
 parser.add_argument('--ar_order', type=int, default=1, help = 'Autoregressive order of the data')
 parser.add_argument('--rollout_horizon', type = int, default = 10, help = 'Visualization: single step & rollouts')
@@ -134,7 +135,7 @@ batch_sizes = {'MHD': 16//2, 'DR': 64//2 , 'CFD1D': 128//2,                # pre
                'CFD2D-IC': 16 //2, 'CFD3D': 4 //2 , 'SW': 64 //2,          # pretraining sets
                'DR1D': 384 // 2, 'CFD2D': 64 // 2, 'CFD3D-TURB': 16 // 2,  # finetraining sets
                'BE1D': 384 // 2, 'GSDR2D': 64 // 2, 'TGC3D': 16 // 2,      # finetraining sets
-               'FNS_KF_2D': 64//2}                                         # finetraining sets
+               'FNS_KF_2D': 64//2, 'DR2D': 64 // 2}                         # finetraining sets
 batch_size = args.batch_size if args.batch_size is not None else batch_sizes[test_dataset]
 print(f'→ Selected Batch size for {test_dataset} is {batch_size}')
 

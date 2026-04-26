@@ -99,6 +99,16 @@ class DataConfig(dict):
                  'max_patches': 1024 // patch_size,
                  'total_trsamples': 8000, 
                  'total_timesteps': 201},
+
+        'DR2D': {'root': os.path.join(project_root, 'datasets',
+                         'normalized_revin', 'DR2d_data_pdebench'),
+                 'fields':     2,
+                 'components': 1,
+                 'volume_size': (1, 128, 128),
+                 'patch_size': (1, patch_size, patch_size),
+                 'max_patches': (128 // patch_size)**2,
+                 'total_trsamples': 800,
+                 'total_timesteps': 101},
         
         'GSDR2D': {'root': os.path.join(project_root, 'datasets', 
                          'normalized_revin', '2dgrayscottdr_thewell'),
